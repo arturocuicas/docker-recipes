@@ -1,0 +1,61 @@
+version: '3.1'
+
+services:
+        
+        letsencrypt:
+                depends_on:
+                        - nginx-proxy
+                image: jrcs/letsencrypt-nginx-proxy-companion
+                restart: always
+                environment:
+                        - NGINX_PROXY_CONTAINER=nginx-proxy
+                volumes:
+                        - certs:/etc/nginx/certs:rw
+                        - /var/run/docker.sock:/var/run/docker.sock.ro
+                        - vhostd:/etc/nginx/vhost.d
+                        - html:/usr/share/nginx/html
+                networks:
+                        - app-network
+        
+        nginx-proxy:
+                depends_on:
+                        - webserver
+                image: jwilder/nginx-proxy
+                restart: always
+                ports:
+                        - "80:80"
+                        - "443:443"
+                volumes:
+                        - /var/run/docker.sock:/temp/docker.sock:ro
+                        - certs:/etc/nginx/certs:ro
+                        - vhostd:/etc/nginx/vhost.d
+                        - html:/usr/share/nginx/html
+                labels:
+                        - com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy
+                networks:
+                        - app-network
+
+        webserver:
+                depends_on:
+                        - wordpress
+                image: nginx
+                restart: always
+                expose:
+                        - "80"
+                volumes:
+                        - certs:/var/www/html:ro
+                environment:
+                        - VIRTUAL_HOST=testdockerwp.com,www.testdockerwp.com
+                        - LETSENCRYPT_HOST=testdockerwp.com,www.testdockerwp.com
+                        - LETSENCRYPT_EMAIL=orutrax@gmail.com
+                networks:
+                        - app-network
+
+volumes:
+        certs:
+        html:
+        vhostd:
+
+networks:
+        app-network:
+                driver: bridge
